@@ -1,0 +1,242 @@
+﻿!function () {
+    var writeKey = window.segment.Writekey;
+    var analytics = window.analytics = window.analytics || []; if (!analytics.initialize) if (analytics.invoked) window.console && console.error && console.error("Segment snippet included twice."); else {
+        analytics.invoked = !0; analytics.methods = ["trackSubmit", "trackClick", "trackLink", "trackForm", "pageview", "identify", "reset", "group", "track", "ready", "alias", "page", "once", "off", "on"]; analytics.factory = function (t) { return function () { var e = Array.prototype.slice.call(arguments); e.unshift(t); analytics.push(e); return analytics } }; for (var t = 0; t < analytics.methods.length; t++) { var e = analytics.methods[t]; analytics[e] = analytics.factory(e) } analytics.load = function (t, opt) { var e = document.createElement("script"); e.type = "text/javascript"; e.defer = !0; e.src = ("https:" === document.location.protocol ? "https://" : "http://") + "cdn.segment.com/analytics.js/v1/" + t + "/analytics.min.js"; var n = document.getElementsByTagName("script")[0]; n.parentNode.insertBefore(e, n); analytics._loadOptions = opt; }; analytics.SNIPPET_VERSION = "4.1.0";
+        if (window.segment.Integrations) {
+            var integrations = window.segment.Integrations;
+            var loadOptions = {
+                integrations: integrations
+            };
+            analytics.load(writeKey, loadOptions);
+        }
+        else {
+            analytics.load(writeKey);
+        }
+    }
+}();
+
+var jsUtility = {
+    set_Cookie: function (c_name, value, exdays) {
+        var exdate = new Date();
+        exdate.setDate(exdate.getDate() + exdays);
+		var c_value = escape(value) + ((exdays == null) ? "" : "; expires=" + exdate.toUTCString());
+		var domain = window.segment.Domain;
+		if (domain) {
+			document.cookie = c_name + "=" + c_value + ";domain=" + domain + ";path=/";
+		}
+		else {
+			document.cookie = c_name + "=" + c_value + ";path=/";
+		}
+    },
+    get_Cookie: function (c_name) {
+        var c_value = document.cookie;
+        var c_start = c_value.indexOf(" " + c_name + "=");
+        if (c_start == -1) {
+            c_start = c_value.indexOf(c_name + "=");
+        }
+        if (c_start == -1) {
+            c_value = null;
+        }
+        else {
+            c_start = c_value.indexOf("=", c_start) + 1;
+            var c_end = c_value.indexOf(";", c_start);
+            if (c_end == -1) {
+                c_end = c_value.length;
+            }
+            c_value = unescape(c_value.substring(c_start, c_end));
+        }
+        return c_value;
+    },
+    htmlEscape: function (str) {
+        if (!str) { return; }
+
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+    htmlUnescape: function (str) {
+        if (!str) { return; }
+
+        return str
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, 'and');
+    },
+    getParameterByName: function (name) {
+        name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+        var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+            results = regex.exec(location.search);
+        return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    },
+    getCookieKeyValPair: function (c_name, key) {
+        var keyVal = "";
+        var c_value = jsUtility.get_Cookie(c_name);
+        if (c_value != null && c_value.length > 0) {
+            var arrkeyval = c_value.split("#");
+            if (arrkeyval.length > 0 && arrkeyval[0].indexOf(":") != -1) {
+                for (var i in arrkeyval) {
+                    if (arrkeyval[i].split(':')[0].trim().indexOf(key) != -1) {
+                        keyVal = arrkeyval[i].split(':')[1].trim();
+                        break;
+                    }
+                }
+            }
+        }
+        return keyVal;
+    },
+    setCookieKeyValPair: function (c_name, key, value, exdays) {
+        var c_Val = getCookie(c_name);
+        if (c_Val == null || c_Val.trim().length == 0) {
+            jsUtility.set_Cookie(c_name, key + " : " + value, exdays);
+        }
+        else {
+            var keyVal = jsUtility.getCookieKeyValPair(c_name, key);
+            if (keyVal.length == 0) {
+                jsUtility.set_Cookie(c_name, c_Val + " # " + key + " : " + value, exdays);
+            }
+            else {
+                if (keyVal != value) {
+                    jsUtility.set_Cookie(c_name, c_Val.replace(key + " : " + keyVal, key + " : " + value), exdays);
+                }
+            }
+        }
+    }
+}
+
+function TrackEvents(eventname, eventpropval, userid, islogin, skipTraitsToIterable) {
+    var propertiesToBeSent = JSON.parse(JSON.stringify(window.segment.CommonProps));
+	propertiesToBeSent['Login Status'] = islogin;
+    var eventproperties = {};
+
+    if (eventpropval) {
+        for (var item in eventpropval) {
+            if (eventpropval[item]) {
+                propertiesToBeSent[item] = eventpropval[item];
+                eventproperties[item] = eventpropval[item];
+            }
+        }
+    }
+    switch (eventname) {
+        case "identify":
+            {
+                FireSegmentIOIdentify(userid, eventproperties, skipTraitsToIterable);
+                break;
+            }
+        case "page":
+            {
+                FireSegmentIOPage("", propertiesToBeSent);
+                break;
+            }
+        default:
+            {
+                FireSegmentIOTrack(eventname, propertiesToBeSent);
+            }
+    }
+}
+
+function TrackPageEvents(eventpropval, islogin) {
+    var propertiesToBeSent = JSON.parse(JSON.stringify(window.segment.CommonProps));
+	propertiesToBeSent['Login Status'] = islogin;
+    if (eventpropval) {
+        for (var item in eventpropval) {
+            if (eventpropval[item]) {
+                propertiesToBeSent[item] = eventpropval[item];
+            }
+        }
+    }
+    FireSegmentIOPage("", propertiesToBeSent);
+}
+
+function TrackAlias(userid) {
+    FireSegmentIOAlias(userid);
+}
+
+function FireSegmentIOIdentify(userid, traits, skipTraitsToIterable) {
+    traits = traits || null;
+    if (userid) {
+        if (traits != null) {
+            if (skipTraitsToIterable) {
+                analytics.identify(userid, traits, {
+                    integrations: {
+                        'Iterable': false
+                    }
+                });
+            }
+            else {
+                analytics.identify(userid, traits);
+            }
+        }
+        else {
+            analytics.identify(userid);
+        }
+    }
+    else {
+        analytics.identify(traits);
+    }
+    //clear traits
+    analytics.ready(function () {
+        analytics.user().traits({});
+    });
+}
+
+
+function FireSegmentIOPage(pagename, properties) {
+    try {
+        properties = properties || null;
+        if (properties != null) {
+            analytics.page(pagename, properties);
+        }
+        else {
+            analytics.page(pagename);
+        }
+    }
+    catch (ex) {
+        console.log(ex);
+    }
+}
+
+//The track API call is how you record any actions your users perform, along with any properties that describe the action.
+function FireSegmentIOTrack(eventname, properties) {
+    try {
+        properties = properties || null;
+        if (properties != null) {
+            analytics.track(eventname, properties);
+        }
+        else {
+            analytics.track(eventname);
+        }
+    }
+    catch (ex) {
+        console.log(ex);
+    }
+}
+
+function FireSegmentIOAlias(userid) {
+    analytics.alias(userid);
+}
+
+
+function TrackUTMEvents(a) {
+    var b = GetParameterByName("utm_source"),
+            c = GetParameterByName("utm_medium"),
+            d = GetParameterByName("utm_term"),
+            e = GetParameterByName("utm_content"),
+            f = GetParameterByName("utm_campaign"),
+            g = {
+                "UTM Source first touch": b,
+                "UTM Medium first touch": c,
+                "UTM Term first touch": d,
+                "UTM Content first touch": e,
+                "UTM Campaign first touch": f
+            },
+    h = {};
+    if (g)
+        for (var i in g)
+            g[i] && (h[i] = g[i]);
+    h || FireSegmentIOIdentify(a, h, !1, !0)
+}
